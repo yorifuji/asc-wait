@@ -1,23 +1,50 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: 'App Store Connect Build Wait'
+description: 'Wait for App Store Connect build processing to complete'
+author: 'yorifuji'
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: heart
-  color: red
+  icon: 'clock'
+  color: 'blue'
 
-# Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
+  issuer-id:
+    description: 'App Store Connect API Issuer ID'
     required: true
-    default: '1000'
+  key-id:
+    description: 'App Store Connect API Key ID'
+    required: true
+  key:
+    description: 'App Store Connect API Private Key'
+    required: true
+  bundle-id:
+    description: 'Bundle ID of the app'
+    required: true
+  version:
+    description: 'Version to check (e.g., "1.2.0")'
+    required: true
+  build-number:
+    description: 'Build number to check'
+    required: true
+  timeout:
+    description: 'Timeout in seconds (60-1200)'
+    default: '1200'
+    required: false
+  interval:
+    description: 'Polling interval in seconds'
+    default: '30'
+    required: false
 
-# Define your outputs here.
 outputs:
-  time:
-    description: Your output description here
+  build-id:
+    description: 'ID of the processed build'
+  processing-state:
+    description: 'Final processing state'
+  version:
+    description: 'Version of the build'
+  build-number:
+    description: 'Build number'
+  elapsed-time:
+    description: 'Time taken for processing in seconds'
 
 runs:
   using: node20
