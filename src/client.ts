@@ -3,8 +3,8 @@ import { getAuthorizationHeader } from './auth.js'
 
 interface APIResponse<T> {
   data: T
-  links?: any
-  meta?: any
+  links?: unknown
+  meta?: unknown
 }
 
 interface App {
@@ -42,14 +42,10 @@ interface Build {
 
 export class AppStoreConnectClient {
   private baseUrl = 'https://api.appstoreconnect.apple.com/v1'
-  private authHeader: string
+  private config: Config
 
   constructor(config: Config) {
-    this.authHeader = getAuthorizationHeader({
-      issuerId: config.issuerId,
-      keyId: config.keyId,
-      key: config.key
-    })
+    this.config = config
   }
 
   private async request<T>(
@@ -57,10 +53,16 @@ export class AppStoreConnectClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`
+    // Generate a fresh JWT for each request
+    const authHeader = getAuthorizationHeader({
+      issuerId: this.config.issuerId,
+      keyId: this.config.keyId,
+      key: this.config.key
+    })
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Authorization': this.authHeader,
+        Authorization: authHeader,
         'Content-Type': 'application/json',
         ...options.headers
       }
@@ -68,7 +70,9 @@ export class AppStoreConnectClient {
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${error}`)
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText} - ${error}`
+      )
     }
 
     return response.json() as Promise<T>
@@ -88,7 +92,7 @@ export class AppStoreConnectClient {
 
   async getBuilds(appId: string, version?: string): Promise<Build[]> {
     let path = `/builds?filter[app]=${appId}&sort=-uploadedDate&limit=200`
-    
+
     if (version) {
       path += `&filter[preReleaseVersion.version]=${encodeURIComponent(version)}`
     }

@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as core from '@actions/core'
 import { run } from '../src/main'
 import { BuildService } from '../src/buildService'
-import { inputSchema, configSchema } from '../src/types'
 
 vi.mock('@actions/core')
 vi.mock('../src/buildService')
@@ -11,19 +10,23 @@ describe('Main', () => {
   const mockInputs = {
     'issuer-id': 'test-issuer',
     'key-id': 'test-key',
-    'key': 'test-private-key',
+    key: 'test-private-key',
     'bundle-id': 'com.example.app',
-    'version': '1.0.0',
+    version: '1.0.0',
     'build-number': '100',
-    'timeout': '600',
-    'interval': '30'
+    timeout: '600',
+    interval: '30'
   }
 
-  let mockBuildService: any
+  let mockBuildService: {
+    findTargetBuild: ReturnType<typeof vi.fn>
+    findTargetBuildWithRetry: ReturnType<typeof vi.fn>
+    waitForProcessing: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Mock core.getInput
     vi.mocked(core.getInput).mockImplementation((name: string) => {
       return mockInputs[name as keyof typeof mockInputs] || ''
@@ -32,6 +35,7 @@ describe('Main', () => {
     // Mock BuildService
     mockBuildService = {
       findTargetBuild: vi.fn(),
+      findTargetBuildWithRetry: vi.fn(),
       waitForProcessing: vi.fn()
     }
     vi.mocked(BuildService).mockImplementation(() => mockBuildService)
@@ -51,12 +55,10 @@ describe('Main', () => {
         processingState: 'VALID'
       }
 
-      mockBuildService.findTargetBuild.mockResolvedValue(mockBuildInfo)
+      mockBuildService.findTargetBuildWithRetry.mockResolvedValue(mockBuildInfo)
       mockBuildService.waitForProcessing.mockResolvedValue(mockProcessedBuild)
 
-      const startTime = Date.now()
       await run()
-      const elapsedTime = Math.floor((Date.now() - startTime) / 1000)
 
       // Verify inputs were read correctly
       expect(core.getInput).toHaveBeenCalledWith('issuer-id')
@@ -69,15 +71,20 @@ describe('Main', () => {
       expect(core.getInput).toHaveBeenCalledWith('interval')
 
       // Verify BuildService was called
-      expect(mockBuildService.findTargetBuild).toHaveBeenCalledTimes(1)
-      expect(mockBuildService.waitForProcessing).toHaveBeenCalledWith(mockBuildInfo)
+      expect(mockBuildService.findTargetBuildWithRetry).toHaveBeenCalledTimes(1)
+      expect(mockBuildService.waitForProcessing).toHaveBeenCalledWith(
+        mockBuildInfo
+      )
 
       // Verify outputs were set
       expect(core.setOutput).toHaveBeenCalledWith('build-id', 'build-123')
       expect(core.setOutput).toHaveBeenCalledWith('processing-state', 'VALID')
       expect(core.setOutput).toHaveBeenCalledWith('version', '1.0.0')
       expect(core.setOutput).toHaveBeenCalledWith('build-number', '100')
-      expect(core.setOutput).toHaveBeenCalledWith('elapsed-time', expect.any(String))
+      expect(core.setOutput).toHaveBeenCalledWith(
+        'elapsed-time',
+        expect.any(String)
+      )
 
       // Verify success message
       expect(core.info).toHaveBeenCalledWith(
@@ -102,7 +109,7 @@ describe('Main', () => {
 
     it('should fail when build is not found', async () => {
       const error = new Error('Build not found')
-      mockBuildService.findTargetBuild.mockRejectedValue(error)
+      mockBuildService.findTargetBuildWithRetry.mockRejectedValue(error)
 
       await run()
 
@@ -117,7 +124,7 @@ describe('Main', () => {
         processingState: 'PROCESSING'
       }
 
-      mockBuildService.findTargetBuild.mockResolvedValue(mockBuildInfo)
+      mockBuildService.findTargetBuildWithRetry.mockResolvedValue(mockBuildInfo)
       mockBuildService.waitForProcessing.mockRejectedValue(
         new Error('Build processing failed with state: FAILED')
       )
@@ -137,7 +144,7 @@ describe('Main', () => {
         processingState: 'PROCESSING'
       }
 
-      mockBuildService.findTargetBuild.mockResolvedValue(mockBuildInfo)
+      mockBuildService.findTargetBuildWithRetry.mockResolvedValue(mockBuildInfo)
       mockBuildService.waitForProcessing.mockRejectedValue(
         new Error('Timeout waiting for build processing after 600 seconds')
       )
@@ -151,7 +158,9 @@ describe('Main', () => {
 
     it('should handle unexpected errors gracefully', async () => {
       const unexpectedError = new Error('Unexpected error')
-      mockBuildService.findTargetBuild.mockRejectedValue(unexpectedError)
+      mockBuildService.findTargetBuildWithRetry.mockRejectedValue(
+        unexpectedError
+      )
 
       await run()
 

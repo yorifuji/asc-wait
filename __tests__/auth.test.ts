@@ -18,7 +18,7 @@ describe('JWT Authentication', () => {
   describe('generateJWT', () => {
     it('should generate a JWT token with correct parameters', () => {
       const mockToken = 'mock.jwt.token'
-      vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
+      vi.mocked(jwt.sign).mockReturnValue(mockToken as unknown as jwt.Secret)
 
       const token = generateJWT(mockConfig)
 
@@ -45,21 +45,21 @@ describe('JWT Authentication', () => {
 
     it('should set correct expiration time (19 minutes)', () => {
       const mockToken = 'mock.jwt.token'
-      vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
-      
+      vi.mocked(jwt.sign).mockReturnValue(mockToken as unknown as jwt.Secret)
+
       const nowInSeconds = Math.floor(Date.now() / 1000)
       generateJWT(mockConfig)
 
       const signCall = vi.mocked(jwt.sign).mock.calls[0]
-      const payload = signCall[0] as any
-      
+      const payload = signCall[0] as Record<string, unknown>
+
       expect(payload.exp - payload.iat).toBe(19 * 60)
       expect(payload.iat).toBeGreaterThanOrEqual(nowInSeconds)
     })
 
     it('should use ES256 algorithm', () => {
       const mockToken = 'mock.jwt.token'
-      vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
+      vi.mocked(jwt.sign).mockReturnValue(mockToken as unknown as jwt.Secret)
 
       generateJWT(mockConfig)
 
@@ -70,13 +70,13 @@ describe('JWT Authentication', () => {
 
     it('should include kid and typ in header', () => {
       const mockToken = 'mock.jwt.token'
-      vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
+      vi.mocked(jwt.sign).mockReturnValue(mockToken as unknown as jwt.Secret)
 
       generateJWT(mockConfig)
 
       const signCall = vi.mocked(jwt.sign).mock.calls[0]
       const options = signCall[2] as jwt.SignOptions
-      expect(options.header).toEqual({ 
+      expect(options.header).toEqual({
         alg: 'ES256',
         kid: mockConfig.keyId,
         typ: 'JWT'
@@ -97,7 +97,9 @@ describe('JWT Authentication', () => {
         ...mockConfig,
         key: 'invalid-key'
       }
-      const mockError = new Error('error:0909006C:PEM routines:get_name:no start line')
+      const mockError = new Error(
+        'error:0909006C:PEM routines:get_name:no start line'
+      )
       vi.mocked(jwt.sign).mockImplementation(() => {
         throw mockError
       })
@@ -107,8 +109,8 @@ describe('JWT Authentication', () => {
 
     it('should normalize private key without PEM headers', () => {
       const mockToken = 'mock.jwt.token'
-      vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
-      
+      vi.mocked(jwt.sign).mockReturnValue(mockToken as unknown as jwt.Secret)
+
       const configWithRawKey = {
         ...mockConfig,
         key: 'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgevZzL1gdAFr88hb2'
@@ -118,7 +120,7 @@ describe('JWT Authentication', () => {
 
       const signCall = vi.mocked(jwt.sign).mock.calls[0]
       const privateKey = signCall[1] as string
-      
+
       expect(privateKey).toContain('-----BEGIN PRIVATE KEY-----')
       expect(privateKey).toContain('-----END PRIVATE KEY-----')
     })
@@ -128,7 +130,7 @@ describe('JWT Authentication', () => {
     it('should return Bearer token header', async () => {
       const { getAuthorizationHeader } = await import('../src/auth')
       const mockToken = 'mock.jwt.token'
-      vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
+      vi.mocked(jwt.sign).mockReturnValue(mockToken as unknown as jwt.Secret)
 
       const header = getAuthorizationHeader(mockConfig)
 

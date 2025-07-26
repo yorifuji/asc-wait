@@ -22,7 +22,7 @@ describe('Input Schema Validation', () => {
 
     it('should fail when required fields are missing', () => {
       const invalidInput = {
-        issuerId: 'abc123',
+        issuerId: 'abc123'
         // missing other required fields
       }
 

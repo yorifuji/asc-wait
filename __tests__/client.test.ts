@@ -24,11 +24,13 @@ describe('AppStoreConnectClient', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    
+
     // Set up auth mock
     const authModule = await import('../src/auth')
-    vi.mocked(authModule.getAuthorizationHeader).mockReturnValue('Bearer mock.token')
-    
+    vi.mocked(authModule.getAuthorizationHeader).mockReturnValue(
+      'Bearer mock.token'
+    )
+
     client = new AppStoreConnectClient(mockConfig)
   })
 
@@ -37,13 +39,9 @@ describe('AppStoreConnectClient', () => {
   })
 
   describe('constructor', () => {
-    it('should initialize with correct authorization header', async () => {
-      const authModule = await import('../src/auth')
-      expect(authModule.getAuthorizationHeader).toHaveBeenCalledWith({
-        issuerId: 'test-issuer',
-        keyId: 'test-key',
-        key: 'test-private-key'
-      })
+    it('should store config for later use', () => {
+      // Constructor no longer generates JWT, just stores config
+      expect(client).toBeDefined()
     })
   })
 
@@ -61,19 +59,27 @@ describe('AppStoreConnectClient', () => {
           }
         ]
       }
-      
+
       vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAppData
       } as Response)
-      
+
       const app = await client.getAppByBundleId('com.example.app')
-      
+
+      // Verify JWT is generated for this request
+      const authModule = await import('../src/auth')
+      expect(authModule.getAuthorizationHeader).toHaveBeenCalledWith({
+        issuerId: 'test-issuer',
+        keyId: 'test-key',
+        key: 'test-private-key'
+      })
+
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.appstoreconnect.apple.com/v1/apps?filter[bundleId]=com.example.app',
         {
           headers: {
-            'Authorization': 'Bearer mock.token',
+            Authorization: 'Bearer mock.token',
             'Content-Type': 'application/json'
           }
         }
@@ -86,9 +92,10 @@ describe('AppStoreConnectClient', () => {
         ok: true,
         json: async () => ({ data: [] })
       } as Response)
-      
-      await expect(client.getAppByBundleId('com.example.app'))
-        .rejects.toThrow('App not found with bundle ID: com.example.app')
+
+      await expect(client.getAppByBundleId('com.example.app')).rejects.toThrow(
+        'App not found with bundle ID: com.example.app'
+      )
     })
 
     it('should handle API errors', async () => {
@@ -98,13 +105,35 @@ describe('AppStoreConnectClient', () => {
         statusText: 'Unauthorized',
         text: async () => 'Invalid authentication'
       } as Response)
-      
-      await expect(client.getAppByBundleId('com.example.app'))
-        .rejects.toThrow('API request failed: 401 Unauthorized - Invalid authentication')
+
+      await expect(client.getAppByBundleId('com.example.app')).rejects.toThrow(
+        'API request failed: 401 Unauthorized - Invalid authentication'
+      )
     })
   })
 
   describe('getBuilds', () => {
+    it('should generate new JWT for each request', async () => {
+      const authModule = await import('../src/auth')
+      vi.mocked(authModule.getAuthorizationHeader).mockClear()
+
+      const mockBuildsData = {
+        data: []
+      }
+
+      // Make two requests to verify JWT is generated each time
+      vi.mocked(global.fetch).mockResolvedValue({
+        ok: true,
+        json: async () => mockBuildsData
+      } as Response)
+
+      await client.getBuilds('app-id-123')
+      await client.getBuilds('app-id-123')
+
+      // JWT should be generated twice
+      expect(authModule.getAuthorizationHeader).toHaveBeenCalledTimes(2)
+    })
+
     it('should fetch builds with correct filters', async () => {
       const mockBuildsData = {
         data: [
@@ -119,19 +148,19 @@ describe('AppStoreConnectClient', () => {
           }
         ]
       }
-      
+
       vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => mockBuildsData
       } as Response)
-      
+
       const builds = await client.getBuilds('app-id-123', '1.0.0')
-      
+
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.appstoreconnect.apple.com/v1/builds?filter[app]=app-id-123&sort=-uploadedDate&limit=200&filter[preReleaseVersion.version]=1.0.0',
         {
           headers: {
-            'Authorization': 'Bearer mock.token',
+            Authorization: 'Bearer mock.token',
             'Content-Type': 'application/json'
           }
         }
@@ -143,19 +172,19 @@ describe('AppStoreConnectClient', () => {
       const mockBuildsData = {
         data: []
       }
-      
+
       vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => mockBuildsData
       } as Response)
-      
+
       await client.getBuilds('app-id-123')
-      
+
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.appstoreconnect.apple.com/v1/builds?filter[app]=app-id-123&sort=-uploadedDate&limit=200',
         {
           headers: {
-            'Authorization': 'Bearer mock.token',
+            Authorization: 'Bearer mock.token',
             'Content-Type': 'application/json'
           }
         }
@@ -175,19 +204,19 @@ describe('AppStoreConnectClient', () => {
           }
         }
       }
-      
+
       vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => mockBuildData
       } as Response)
-      
+
       const build = await client.getBuildById('build-123')
-      
+
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.appstoreconnect.apple.com/v1/builds/build-123',
         {
           headers: {
-            'Authorization': 'Bearer mock.token',
+            Authorization: 'Bearer mock.token',
             'Content-Type': 'application/json'
           }
         }
@@ -202,9 +231,10 @@ describe('AppStoreConnectClient', () => {
         statusText: 'Not Found',
         text: async () => 'Build not found'
       } as Response)
-      
-      await expect(client.getBuildById('build-123'))
-        .rejects.toThrow('API request failed: 404 Not Found - Build not found')
+
+      await expect(client.getBuildById('build-123')).rejects.toThrow(
+        'API request failed: 404 Not Found - Build not found'
+      )
     })
   })
 })

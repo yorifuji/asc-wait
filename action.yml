@@ -31,7 +31,7 @@ inputs:
     required: false
   interval:
     description: 'Polling interval in seconds'
-    default: '30'
+    default: '60'
     required: false
 
 outputs:

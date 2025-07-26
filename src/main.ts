@@ -30,10 +30,9 @@ export async function run(): Promise<void> {
     // Create build service
     const buildService = new BuildService(config)
 
-    // Find target build
-    core.info(`Looking for build: version ${config.version}, build ${config.buildNumber}`)
-    const buildInfo = await buildService.findTargetBuild()
-    
+    // Find target build with retry
+    const buildInfo = await buildService.findTargetBuildWithRetry()
+
     core.info(`Found build: ${buildInfo.id}`)
     core.info(`Current processing state: ${buildInfo.processingState}`)
 
@@ -54,7 +53,6 @@ export async function run(): Promise<void> {
     core.setOutput('elapsed-time', elapsedTime.toString())
 
     core.info(`✅ Build processing completed successfully in ${elapsedTime}s`)
-
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) {

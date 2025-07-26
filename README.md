@@ -4,7 +4,9 @@
 [![Check dist/](https://github.com/yorifuji/asc-wait/actions/workflows/check-dist.yml/badge.svg)](https://github.com/yorifuji/asc-wait/actions/workflows/check-dist.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
 
-A GitHub Action that waits for App Store Connect build processing to complete. This action monitors the processing state of a specific build and waits until it becomes valid.
+A GitHub Action that waits for App Store Connect build processing to complete.
+This action monitors the processing state of a specific build and waits until it
+becomes valid.
 
 ## Features
 
@@ -24,38 +26,39 @@ A GitHub Action that waits for App Store Connect build processing to complete. T
     key-id: ${{ secrets.ASC_KEY_ID }}
     key: ${{ secrets.ASC_PRIVATE_KEY }}
     bundle-id: com.example.app
-    version: "1.2.0"
-    build-number: "123"
-    timeout: 1200  # Optional: default 20 minutes
-    interval: 30   # Optional: default 30 seconds
+    version: '1.2.0'
+    build-number: '123'
+    timeout: 1200 # Optional: default 20 minutes
+    interval: 60 # Optional: default 60 seconds
 ```
 
 ## Inputs
 
-| Name | Description | Required | Default |
-|------|-------------|----------|---------|
-| `issuer-id` | App Store Connect API Issuer ID | ✅ | - |
-| `key-id` | App Store Connect API Key ID | ✅ | - |
-| `key` | App Store Connect API Private Key | ✅ | - |
-| `bundle-id` | Bundle ID of the app | ✅ | - |
-| `version` | Version to check (e.g., "1.2.0") | ✅ | - |
-| `build-number` | Build number to check | ✅ | - |
-| `timeout` | Timeout in seconds (60-1200) | ❌ | `1200` |
-| `interval` | Polling interval in seconds | ❌ | `30` |
+| Name           | Description                       | Required | Default |
+| -------------- | --------------------------------- | -------- | ------- |
+| `issuer-id`    | App Store Connect API Issuer ID   | ✅       | -       |
+| `key-id`       | App Store Connect API Key ID      | ✅       | -       |
+| `key`          | App Store Connect API Private Key | ✅       | -       |
+| `bundle-id`    | Bundle ID of the app              | ✅       | -       |
+| `version`      | Version to check (e.g., "1.2.0")  | ✅       | -       |
+| `build-number` | Build number to check             | ✅       | -       |
+| `timeout`      | Timeout in seconds (60-1200)      | ❌       | `1200`  |
+| `interval`     | Polling interval in seconds       | ❌       | `60`    |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `build-id` | ID of the processed build |
-| `processing-state` | Final processing state |
-| `version` | Version of the build |
-| `build-number` | Build number |
-| `elapsed-time` | Time taken for processing in seconds |
+| Name               | Description                          |
+| ------------------ | ------------------------------------ |
+| `build-id`         | ID of the processed build            |
+| `processing-state` | Final processing state               |
+| `version`          | Version of the build                 |
+| `build-number`     | Build number                         |
+| `elapsed-time`     | Time taken for processing in seconds |
 
 ## Example Workflow
 
-Here's a complete example that uploads a build to App Store Connect and waits for processing:
+Here's a complete example that uploads a build to App Store Connect and waits
+for processing:
 
 ```yaml
 name: Deploy to App Store Connect
@@ -72,7 +75,7 @@ jobs:
       build-number: ${{ steps.version.outputs.build-number }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Get Version Info
         id: version
         run: |
@@ -80,7 +83,7 @@ jobs:
           BUILD=$(xcrun agvtool what-version -terse)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "build-number=$BUILD" >> $GITHUB_OUTPUT
-      
+
       - name: Build and Upload
         run: |
           # Your build and upload commands here
@@ -101,7 +104,7 @@ jobs:
           bundle-id: com.example.app
           version: ${{ needs.upload.outputs.version }}
           build-number: ${{ needs.upload.outputs.build-number }}
-      
+
       - name: Continue with deployment
         run: echo "Build processing complete!"
 ```
@@ -134,7 +137,8 @@ The action monitors the following processing states:
 - `INVALID`: Build processing failed ❌
 - `FAILED`: Build processing failed ❌
 
-The action will wait until the build reaches `VALID` state or fail if it reaches `INVALID` or `FAILED` state.
+The action will wait until the build reaches `VALID` state or fail if it reaches
+`INVALID` or `FAILED` state.
 
 ## Development
 

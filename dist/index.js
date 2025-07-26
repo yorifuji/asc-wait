@@ -33673,20 +33673,22 @@ function getAuthorizationHeader(config) {
 
 class AppStoreConnectClient {
     baseUrl = 'https://api.appstoreconnect.apple.com/v1';
-    authHeader;
+    config;
     constructor(config) {
-        this.authHeader = getAuthorizationHeader({
-            issuerId: config.issuerId,
-            keyId: config.keyId,
-            key: config.key
-        });
+        this.config = config;
     }
     async request(path, options = {}) {
         const url = `${this.baseUrl}${path}`;
+        // Generate a fresh JWT for each request
+        const authHeader = getAuthorizationHeader({
+            issuerId: this.config.issuerId,
+            keyId: this.config.keyId,
+            key: this.config.key
+        });
         const response = await fetch(url, {
             ...options,
             headers: {
-                'Authorization': this.authHeader,
+                Authorization: authHeader,
                 'Content-Type': 'application/json',
                 ...options.headers
             }
@@ -33734,7 +33736,7 @@ class BuildService {
             throw new Error(`No builds found for version ${this.config.version}`);
         }
         // Find the specific build with matching build number
-        const targetBuild = builds.find(build => build.attributes.version === this.config.buildNumber);
+        const targetBuild = builds.find((build) => build.attributes.version === this.config.buildNumber);
         if (!targetBuild) {
             throw new Error(`Build not found with version ${this.config.version} and build number ${this.config.buildNumber}`);
         }
@@ -33746,12 +33748,64 @@ class BuildService {
             uploadedDate: targetBuild.attributes.uploadedDate
         };
     }
+    async findTargetBuildWithRetry() {
+        const startTime = Date.now();
+        const intervalMs = this.config.interval * 1000;
+        let attempts = 0;
+        coreExports.info(`Looking for build with version ${this.config.version} and build number ${this.config.buildNumber}`);
+        coreExports.info(`Will retry every ${this.config.interval} seconds until timeout`);
+        coreExports.info('Using fresh JWT for build finding phase (max 19 minutes per JWT)');
+        return new Promise((resolve, reject) => {
+            // eslint-disable-next-line prefer-const
+            let intervalId;
+            const tryFindBuild = async () => {
+                try {
+                    attempts++;
+                    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+                    if (elapsedSeconds > this.config.timeout) {
+                        if (intervalId)
+                            clearInterval(intervalId);
+                        reject(new Error(`Timeout: Build not found after ${this.config.timeout} seconds`));
+                        return;
+                    }
+                    coreExports.info(`[${elapsedMinutes}m ${elapsedSeconds % 60}s] Attempt ${attempts}: Searching for build...`);
+                    const buildInfo = await this.findTargetBuild();
+                    // Build found!
+                    if (intervalId)
+                        clearInterval(intervalId);
+                    coreExports.info(`✓ Build found after ${attempts} attempts (${elapsedSeconds}s)`);
+                    resolve(buildInfo);
+                }
+                catch (error) {
+                    // Build not found yet, will retry
+                    if (error instanceof Error &&
+                        (error.message.includes('Build not found') ||
+                            error.message.includes('No builds found'))) {
+                        coreExports.info(`Build not yet available, will retry in ${this.config.interval} seconds...`);
+                    }
+                    else {
+                        // Other errors should fail immediately
+                        if (intervalId)
+                            clearInterval(intervalId);
+                        reject(error);
+                    }
+                }
+            };
+            // Try immediately
+            void tryFindBuild();
+            // Then retry at intervals
+            intervalId = setInterval(tryFindBuild, intervalMs);
+        });
+    }
     async waitForProcessing(buildInfo) {
         const startTime = Date.now();
         const intervalMs = this.config.interval * 1000;
         coreExports.info(`Waiting for build ${buildInfo.buildNumber} to finish processing...`);
         coreExports.info(`Timeout: ${this.config.timeout}s, Interval: ${this.config.interval}s`);
+        coreExports.info('Using fresh JWT for processing monitoring phase (max 19 minutes per JWT)');
         return new Promise((resolve, reject) => {
+            // eslint-disable-next-line prefer-const
             let intervalId;
             const checkBuildStatus = async () => {
                 try {
@@ -33764,7 +33818,8 @@ class BuildService {
                     }
                     const build = await this.client.getBuildById(buildInfo.id);
                     const processingState = build.attributes.processingState;
-                    coreExports.info(`[${elapsedSeconds}s] Build processing state: ${processingState}`);
+                    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+                    coreExports.info(`[${elapsedMinutes}m ${elapsedSeconds % 60}s] Build processing state: ${processingState}`);
                     if (processingState === 'VALID') {
                         if (intervalId)
                             clearInterval(intervalId);
@@ -33773,7 +33828,8 @@ class BuildService {
                             processingState
                         });
                     }
-                    else if (processingState === 'FAILED' || processingState === 'INVALID') {
+                    else if (processingState === 'FAILED' ||
+                        processingState === 'INVALID') {
                         if (intervalId)
                             clearInterval(intervalId);
                         reject(new Error(`Build processing failed with state: ${processingState}`));
@@ -37081,9 +37137,8 @@ async function run() {
         const config = configSchema.parse(validatedInput);
         // Create build service
         const buildService = new BuildService(config);
-        // Find target build
-        coreExports.info(`Looking for build: version ${config.version}, build ${config.buildNumber}`);
-        const buildInfo = await buildService.findTargetBuild();
+        // Find target build with retry
+        const buildInfo = await buildService.findTargetBuildWithRetry();
         coreExports.info(`Found build: ${buildInfo.id}`);
         coreExports.info(`Current processing state: ${buildInfo.processingState}`);
         // Wait for processing if needed
