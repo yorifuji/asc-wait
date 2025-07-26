@@ -30,10 +30,11 @@ describe('JWT Authentication', () => {
           iat: expect.any(Number),
           exp: expect.any(Number)
         }),
-        mockConfig.key,
+        expect.stringContaining('-----BEGIN PRIVATE KEY-----'),
         expect.objectContaining({
           algorithm: 'ES256',
           header: {
+            alg: 'ES256',
             kid: mockConfig.keyId,
             typ: 'JWT'
           }
@@ -102,6 +103,24 @@ describe('JWT Authentication', () => {
       })
 
       expect(() => generateJWT(invalidConfig)).toThrow()
+    })
+
+    it('should normalize private key without PEM headers', () => {
+      const mockToken = 'mock.jwt.token'
+      vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
+      
+      const configWithRawKey = {
+        ...mockConfig,
+        key: 'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgevZzL1gdAFr88hb2'
+      }
+
+      generateJWT(configWithRawKey)
+
+      const signCall = vi.mocked(jwt.sign).mock.calls[0]
+      const privateKey = signCall[1] as string
+      
+      expect(privateKey).toContain('-----BEGIN PRIVATE KEY-----')
+      expect(privateKey).toContain('-----END PRIVATE KEY-----')
     })
   })
 
