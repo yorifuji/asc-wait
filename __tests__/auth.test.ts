@@ -24,14 +24,18 @@ describe('JWT Authentication', () => {
 
       expect(jwt.sign).toHaveBeenCalledTimes(1)
       expect(jwt.sign).toHaveBeenCalledWith(
-        {},
+        expect.objectContaining({
+          iss: mockConfig.issuerId,
+          aud: 'appstoreconnect-v1',
+          iat: expect.any(Number),
+          exp: expect.any(Number)
+        }),
         mockConfig.key,
         expect.objectContaining({
           algorithm: 'ES256',
-          expiresIn: 19 * 60, // 19 minutes
-          issuer: mockConfig.issuerId,
           header: {
-            kid: mockConfig.keyId
+            kid: mockConfig.keyId,
+            typ: 'JWT'
           }
         })
       )
@@ -41,12 +45,15 @@ describe('JWT Authentication', () => {
     it('should set correct expiration time (19 minutes)', () => {
       const mockToken = 'mock.jwt.token'
       vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
-
+      
+      const nowInSeconds = Math.floor(Date.now() / 1000)
       generateJWT(mockConfig)
 
       const signCall = vi.mocked(jwt.sign).mock.calls[0]
-      const options = signCall[2] as jwt.SignOptions
-      expect(options.expiresIn).toBe(19 * 60)
+      const payload = signCall[0] as any
+      
+      expect(payload.exp - payload.iat).toBe(19 * 60)
+      expect(payload.iat).toBeGreaterThanOrEqual(nowInSeconds)
     })
 
     it('should use ES256 algorithm', () => {
@@ -60,7 +67,7 @@ describe('JWT Authentication', () => {
       expect(options.algorithm).toBe('ES256')
     })
 
-    it('should include kid in header', () => {
+    it('should include kid and typ in header', () => {
       const mockToken = 'mock.jwt.token'
       vi.mocked(jwt.sign).mockReturnValue(mockToken as any)
 
@@ -68,7 +75,11 @@ describe('JWT Authentication', () => {
 
       const signCall = vi.mocked(jwt.sign).mock.calls[0]
       const options = signCall[2] as jwt.SignOptions
-      expect(options.header).toEqual({ kid: mockConfig.keyId })
+      expect(options.header).toEqual({ 
+        alg: 'ES256',
+        kid: mockConfig.keyId,
+        typ: 'JWT'
+      })
     })
 
     it('should throw error if JWT generation fails', () => {

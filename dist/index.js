@@ -33634,14 +33634,20 @@ var jwt = /*@__PURE__*/getDefaultExportFromCjs(jsonwebtokenExports);
 const JWT_EXPIRATION_TIME = 19 * 60; // 19 minutes in seconds
 function generateJWT(config) {
     const { issuerId, keyId, key } = config;
-    const payload = {};
+    const now = Math.floor(Date.now() / 1000);
+    const expiration = now + JWT_EXPIRATION_TIME;
+    const payload = {
+        iss: issuerId,
+        iat: now,
+        exp: expiration,
+        aud: 'appstoreconnect-v1'
+    };
     const options = {
         algorithm: 'ES256',
-        expiresIn: JWT_EXPIRATION_TIME,
-        issuer: issuerId,
         header: {
             alg: 'ES256',
-            kid: keyId
+            kid: keyId,
+            typ: 'JWT'
         }
     };
     return jwt.sign(payload, key, options);
