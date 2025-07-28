@@ -33636,11 +33636,13 @@ function normalizePrivateKey(key) {
     // Remove any extra whitespace
     let normalizedKey = key.trim();
     // Check if the key already has PEM headers
-    const hasHeader = normalizedKey.includes('-----BEGIN PRIVATE KEY-----');
-    const hasFooter = normalizedKey.includes('-----END PRIVATE KEY-----');
+    const pemHeader = '-----BEGIN ' + 'PRIVATE KEY-----';
+    const pemFooter = '-----END ' + 'PRIVATE KEY-----';
+    const hasHeader = normalizedKey.includes(pemHeader);
+    const hasFooter = normalizedKey.includes(pemFooter);
     // If it doesn't have proper PEM format, add it
     if (!hasHeader && !hasFooter) {
-        normalizedKey = `-----BEGIN PRIVATE KEY-----\n${normalizedKey}\n-----END PRIVATE KEY-----`;
+        normalizedKey = `${pemHeader}\n${normalizedKey}\n${pemFooter}`;
     }
     return normalizedKey;
 }

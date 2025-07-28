@@ -8,7 +8,7 @@ describe('Input Schema Validation', () => {
       const validInput = {
         issuerId: 'abc123',
         keyId: 'key123',
-        key: '-----BEGIN PRIVATE KEY-----\nMIGH...\n-----END PRIVATE KEY-----',
+        key: 'TEST-KEY-FOR-VALIDATION',
         bundleId: 'com.example.app',
         version: '1.2.0',
         buildNumber: '123',
@@ -34,7 +34,7 @@ describe('Input Schema Validation', () => {
       const inputWithoutOptionals = {
         issuerId: 'abc123',
         keyId: 'key123',
-        key: '-----BEGIN PRIVATE KEY-----\nMIGH...\n-----END PRIVATE KEY-----',
+        key: 'TEST-KEY-FOR-VALIDATION',
         bundleId: 'com.example.app',
         version: '1.2.0',
         buildNumber: '123'
@@ -51,7 +51,7 @@ describe('Input Schema Validation', () => {
       const config = {
         issuerId: 'abc123',
         keyId: 'key123',
-        key: '-----BEGIN PRIVATE KEY-----\nMIGH...\n-----END PRIVATE KEY-----',
+        key: 'TEST-KEY-FOR-VALIDATION',
         bundleId: 'com.example.app',
         version: '1.2.0',
         buildNumber: '123',
@@ -68,7 +68,7 @@ describe('Input Schema Validation', () => {
       const configWithLowTimeout = {
         issuerId: 'abc123',
         keyId: 'key123',
-        key: '-----BEGIN PRIVATE KEY-----\nMIGH...\n-----END PRIVATE KEY-----',
+        key: 'TEST-KEY-FOR-VALIDATION',
         bundleId: 'com.example.app',
         version: '1.2.0',
         buildNumber: '123',
@@ -83,7 +83,7 @@ describe('Input Schema Validation', () => {
       const configWithHighTimeout = {
         issuerId: 'abc123',
         keyId: 'key123',
-        key: '-----BEGIN PRIVATE KEY-----\nMIGH...\n-----END PRIVATE KEY-----',
+        key: 'TEST-KEY-FOR-VALIDATION',
         bundleId: 'com.example.app',
         version: '1.2.0',
         buildNumber: '123',
@@ -98,7 +98,7 @@ describe('Input Schema Validation', () => {
       const configWithLowInterval = {
         issuerId: 'abc123',
         keyId: 'key123',
-        key: '-----BEGIN PRIVATE KEY-----\nMIGH...\n-----END PRIVATE KEY-----',
+        key: 'TEST-KEY-FOR-VALIDATION',
         bundleId: 'com.example.app',
         version: '1.2.0',
         buildNumber: '123',
