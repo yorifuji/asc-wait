@@ -37104,7 +37104,7 @@ const inputSchema = object({
     version: string().min(1),
     buildNumber: string().min(1),
     timeout: string().default('1200'),
-    interval: string().default('30')
+    interval: string().default('60')
 });
 const configSchema = inputSchema.transform((input) => ({
     ...input,

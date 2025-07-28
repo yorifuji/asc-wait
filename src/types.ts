@@ -8,7 +8,7 @@ export const inputSchema = z.object({
   version: z.string().min(1),
   buildNumber: z.string().min(1),
   timeout: z.string().default('1200'),
-  interval: z.string().default('30')
+  interval: z.string().default('60')
 })
 
 export const configSchema = inputSchema.transform((input) => ({

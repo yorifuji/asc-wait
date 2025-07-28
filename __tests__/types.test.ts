@@ -42,7 +42,7 @@ describe('Input Schema Validation', () => {
 
       const result = inputSchema.parse(inputWithoutOptionals)
       expect(result.timeout).toBe('1200')
-      expect(result.interval).toBe('30')
+      expect(result.interval).toBe('60')
     })
   })
 
