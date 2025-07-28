@@ -3,8 +3,8 @@ description: 'Wait for App Store Connect build processing to complete'
 author: 'yorifuji'
 
 branding:
-  icon: 'clock'
-  color: 'blue'
+  icon: cloud
+  color: blue
 
 inputs:
   issuer-id:
