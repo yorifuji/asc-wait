@@ -9,6 +9,10 @@ import { inputSchema, configSchema } from './types.js'
  */
 export async function run(): Promise<void> {
   const startTime = Date.now()
+  let findBuildStartTime: number
+  let processingStartTime: number
+  let findBuildTime = 0
+  let processingTime = 0
 
   try {
     // Get inputs
@@ -31,15 +35,20 @@ export async function run(): Promise<void> {
     const buildService = new BuildService(config)
 
     // Find target build with retry
+    core.startGroup('🔍 Finding Build')
+    findBuildStartTime = Date.now()
     const buildInfo = await buildService.findTargetBuildWithRetry()
-
-    core.info(`Found build: ${buildInfo.id}`)
-    core.info(`Current processing state: ${buildInfo.processingState}`)
+    findBuildTime = Math.floor((Date.now() - findBuildStartTime) / 1000)
+    core.endGroup()
 
     // Wait for processing if needed
     if (buildInfo.processingState !== 'VALID') {
+      core.startGroup('⏳ Waiting for Processing')
+      processingStartTime = Date.now()
       const processedBuild = await buildService.waitForProcessing(buildInfo)
       buildInfo.processingState = processedBuild.processingState
+      processingTime = Math.floor((Date.now() - processingStartTime) / 1000)
+      core.endGroup()
     }
 
     // Calculate elapsed time
@@ -52,7 +61,20 @@ export async function run(): Promise<void> {
     core.setOutput('build-number', buildInfo.buildNumber)
     core.setOutput('elapsed-time', elapsedTime.toString())
 
-    core.info(`✅ Build processing completed successfully in ${elapsedTime}s`)
+    core.info(`✅ Build processing completed successfully`)
+    core.info('')
+    core.info('Summary:')
+    core.info(`- Build ID: ${buildInfo.id}`)
+    core.info(
+      `- Version: ${buildInfo.version} (Build ${buildInfo.buildNumber})`
+    )
+    core.info(`- Total time: ${formatElapsedTime(elapsedTime)}`)
+    if (findBuildTime > 0) {
+      core.info(`  - Finding build: ${formatElapsedTime(findBuildTime)}`)
+    }
+    if (processingTime > 0) {
+      core.info(`  - Processing: ${formatElapsedTime(processingTime)}`)
+    }
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) {
@@ -60,5 +82,11 @@ export async function run(): Promise<void> {
     } else {
       core.setFailed('An unexpected error occurred')
     }
+  }
+
+  function formatElapsedTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`
   }
 }

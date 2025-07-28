@@ -163,7 +163,7 @@ describe('BuildService', () => {
       })
       expect(mockClient.getBuilds).toHaveBeenCalledTimes(3)
       expect(core.info).toHaveBeenCalledWith(
-        expect.stringContaining('✓ Build found after 3 attempts')
+        expect.stringContaining('Build found after 3 attempts (Total:')
       )
     })
 
@@ -171,7 +171,7 @@ describe('BuildService', () => {
       mockClient.getBuilds.mockResolvedValue([])
 
       const promise = buildService.findTargetBuildWithRetry()
-      
+
       // Add catch handler to prevent unhandled rejection
       promise.catch(() => {
         // Expected rejection
@@ -220,7 +220,7 @@ describe('BuildService', () => {
       await promise
 
       expect(core.info).toHaveBeenCalledWith(
-        expect.stringContaining('[0m 30s] Attempt 2:')
+        expect.stringContaining('Attempt 2: Searching for build...')
       )
     })
   })
@@ -291,7 +291,7 @@ describe('BuildService', () => {
       })
 
       const promise = buildService.waitForProcessing(mockBuildInfo)
-      
+
       // Add catch handler to prevent unhandled rejection
       promise.catch(() => {
         // Expected rejection
@@ -325,7 +325,7 @@ describe('BuildService', () => {
       await promise
 
       expect(core.info).toHaveBeenCalledWith(
-        expect.stringContaining('Build processing state: PROCESSING')
+        expect.stringContaining('Checking build status... PROCESSING')
       )
     })
   })

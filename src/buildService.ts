@@ -11,11 +11,14 @@ export class BuildService {
     this.client = new AppStoreConnectClient(config)
   }
 
-  async findTargetBuild(): Promise<BuildInfo> {
-    core.info(`Finding app with bundle ID: ${this.config.bundleId}`)
-    const app = await this.client.getAppByBundleId(this.config.bundleId)
+  private formatElapsedTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`
+  }
 
-    core.info(`Finding builds for version: ${this.config.version}`)
+  async findTargetBuild(): Promise<BuildInfo> {
+    const app = await this.client.getAppByBundleId(this.config.bundleId)
     const builds = await this.client.getBuilds(app.id, this.config.version)
 
     if (builds.length === 0) {
@@ -48,12 +51,10 @@ export class BuildService {
     let attempts = 0
 
     core.info(
-      `Looking for build with version ${this.config.version} and build number ${this.config.buildNumber}`
+      `Looking for build with version ${this.config.version} (build number: ${this.config.buildNumber})`
     )
-    core.info(`Will retry every ${this.config.interval} seconds until timeout`)
-    core.info(
-      'Using fresh JWT for build finding phase (max 19 minutes per JWT)'
-    )
+    core.info(`Bundle ID: ${this.config.bundleId}`)
+    core.info(`Retry interval: ${this.config.interval} seconds`)
 
     return new Promise((resolve, reject) => {
       // eslint-disable-next-line prefer-const
@@ -63,7 +64,6 @@ export class BuildService {
         try {
           attempts++
           const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
-          const elapsedMinutes = Math.floor(elapsedSeconds / 60)
 
           if (elapsedSeconds > this.config.timeout) {
             if (intervalId) clearInterval(intervalId)
@@ -75,16 +75,16 @@ export class BuildService {
             return
           }
 
-          core.info(
-            `[${elapsedMinutes}m ${elapsedSeconds % 60}s] Attempt ${attempts}: Searching for build...`
-          )
+          core.info(`Attempt ${attempts}: Searching for build...`)
 
           const buildInfo = await this.findTargetBuild()
 
           // Build found!
           if (intervalId) clearInterval(intervalId)
+          core.info(`found ✓`)
+          const elapsedTimeStr = this.formatElapsedTime(elapsedSeconds)
           core.info(
-            `✓ Build found after ${attempts} attempts (${elapsedSeconds}s)`
+            `\nBuild found after ${attempts} attempts (Total: ${elapsedTimeStr})`
           )
           resolve(buildInfo)
         } catch (error) {
@@ -94,9 +94,7 @@ export class BuildService {
             (error.message.includes('Build not found') ||
               error.message.includes('No builds found'))
           ) {
-            core.info(
-              `Build not yet available, will retry in ${this.config.interval} seconds...`
-            )
+            core.info(`not found`)
           } else {
             // Other errors should fail immediately
             if (intervalId) clearInterval(intervalId)
@@ -117,15 +115,8 @@ export class BuildService {
     const startTime = Date.now()
     const intervalMs = this.config.interval * 1000
 
-    core.info(
-      `Waiting for build ${buildInfo.buildNumber} to finish processing...`
-    )
-    core.info(
-      `Timeout: ${this.config.timeout}s, Interval: ${this.config.interval}s`
-    )
-    core.info(
-      'Using fresh JWT for processing monitoring phase (max 19 minutes per JWT)'
-    )
+    core.info(`Build ID: ${buildInfo.id}`)
+    core.info(`Initial state: ${buildInfo.processingState}`)
 
     return new Promise((resolve, reject) => {
       // eslint-disable-next-line prefer-const
@@ -148,13 +139,13 @@ export class BuildService {
           const build = await this.client.getBuildById(buildInfo.id)
           const processingState = build.attributes.processingState
 
-          const elapsedMinutes = Math.floor(elapsedSeconds / 60)
-          core.info(
-            `[${elapsedMinutes}m ${elapsedSeconds % 60}s] Build processing state: ${processingState}`
-          )
+          core.info(`Checking build status... ${processingState}`)
 
           if (processingState === 'VALID') {
             if (intervalId) clearInterval(intervalId)
+            core.info(`VALID ✓`)
+            const elapsedTimeStr = this.formatElapsedTime(elapsedSeconds)
+            core.info(`\nProcessing completed (Total: ${elapsedTimeStr})`)
             resolve({
               ...buildInfo,
               processingState

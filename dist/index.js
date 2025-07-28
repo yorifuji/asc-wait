@@ -33727,10 +33727,13 @@ class BuildService {
         this.config = config;
         this.client = new AppStoreConnectClient(config);
     }
+    formatElapsedTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
+    }
     async findTargetBuild() {
-        coreExports.info(`Finding app with bundle ID: ${this.config.bundleId}`);
         const app = await this.client.getAppByBundleId(this.config.bundleId);
-        coreExports.info(`Finding builds for version: ${this.config.version}`);
         const builds = await this.client.getBuilds(app.id, this.config.version);
         if (builds.length === 0) {
             throw new Error(`No builds found for version ${this.config.version}`);
@@ -33752,9 +33755,9 @@ class BuildService {
         const startTime = Date.now();
         const intervalMs = this.config.interval * 1000;
         let attempts = 0;
-        coreExports.info(`Looking for build with version ${this.config.version} and build number ${this.config.buildNumber}`);
-        coreExports.info(`Will retry every ${this.config.interval} seconds until timeout`);
-        coreExports.info('Using fresh JWT for build finding phase (max 19 minutes per JWT)');
+        coreExports.info(`Looking for build with version ${this.config.version} (build number: ${this.config.buildNumber})`);
+        coreExports.info(`Bundle ID: ${this.config.bundleId}`);
+        coreExports.info(`Retry interval: ${this.config.interval} seconds`);
         return new Promise((resolve, reject) => {
             // eslint-disable-next-line prefer-const
             let intervalId;
@@ -33762,19 +33765,20 @@ class BuildService {
                 try {
                     attempts++;
                     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-                    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
                     if (elapsedSeconds > this.config.timeout) {
                         if (intervalId)
                             clearInterval(intervalId);
                         reject(new Error(`Timeout: Build not found after ${this.config.timeout} seconds`));
                         return;
                     }
-                    coreExports.info(`[${elapsedMinutes}m ${elapsedSeconds % 60}s] Attempt ${attempts}: Searching for build...`);
+                    coreExports.info(`Attempt ${attempts}: Searching for build...`);
                     const buildInfo = await this.findTargetBuild();
                     // Build found!
                     if (intervalId)
                         clearInterval(intervalId);
-                    coreExports.info(`✓ Build found after ${attempts} attempts (${elapsedSeconds}s)`);
+                    coreExports.info(`found ✓`);
+                    const elapsedTimeStr = this.formatElapsedTime(elapsedSeconds);
+                    coreExports.info(`\nBuild found after ${attempts} attempts (Total: ${elapsedTimeStr})`);
                     resolve(buildInfo);
                 }
                 catch (error) {
@@ -33782,7 +33786,7 @@ class BuildService {
                     if (error instanceof Error &&
                         (error.message.includes('Build not found') ||
                             error.message.includes('No builds found'))) {
-                        coreExports.info(`Build not yet available, will retry in ${this.config.interval} seconds...`);
+                        coreExports.info(`not found`);
                     }
                     else {
                         // Other errors should fail immediately
@@ -33801,9 +33805,8 @@ class BuildService {
     async waitForProcessing(buildInfo) {
         const startTime = Date.now();
         const intervalMs = this.config.interval * 1000;
-        coreExports.info(`Waiting for build ${buildInfo.buildNumber} to finish processing...`);
-        coreExports.info(`Timeout: ${this.config.timeout}s, Interval: ${this.config.interval}s`);
-        coreExports.info('Using fresh JWT for processing monitoring phase (max 19 minutes per JWT)');
+        coreExports.info(`Build ID: ${buildInfo.id}`);
+        coreExports.info(`Initial state: ${buildInfo.processingState}`);
         return new Promise((resolve, reject) => {
             // eslint-disable-next-line prefer-const
             let intervalId;
@@ -33818,11 +33821,13 @@ class BuildService {
                     }
                     const build = await this.client.getBuildById(buildInfo.id);
                     const processingState = build.attributes.processingState;
-                    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-                    coreExports.info(`[${elapsedMinutes}m ${elapsedSeconds % 60}s] Build processing state: ${processingState}`);
+                    coreExports.info(`Checking build status... ${processingState}`);
                     if (processingState === 'VALID') {
                         if (intervalId)
                             clearInterval(intervalId);
+                        coreExports.info(`VALID ✓`);
+                        const elapsedTimeStr = this.formatElapsedTime(elapsedSeconds);
+                        coreExports.info(`\nProcessing completed (Total: ${elapsedTimeStr})`);
                         resolve({
                             ...buildInfo,
                             processingState
@@ -37120,6 +37125,10 @@ const configSchema = inputSchema.transform((input) => ({
  */
 async function run() {
     const startTime = Date.now();
+    let findBuildStartTime;
+    let processingStartTime;
+    let findBuildTime = 0;
+    let processingTime = 0;
     try {
         // Get inputs
         const rawInput = {
@@ -37138,13 +37147,19 @@ async function run() {
         // Create build service
         const buildService = new BuildService(config);
         // Find target build with retry
+        coreExports.startGroup('🔍 Finding Build');
+        findBuildStartTime = Date.now();
         const buildInfo = await buildService.findTargetBuildWithRetry();
-        coreExports.info(`Found build: ${buildInfo.id}`);
-        coreExports.info(`Current processing state: ${buildInfo.processingState}`);
+        findBuildTime = Math.floor((Date.now() - findBuildStartTime) / 1000);
+        coreExports.endGroup();
         // Wait for processing if needed
         if (buildInfo.processingState !== 'VALID') {
+            coreExports.startGroup('⏳ Waiting for Processing');
+            processingStartTime = Date.now();
             const processedBuild = await buildService.waitForProcessing(buildInfo);
             buildInfo.processingState = processedBuild.processingState;
+            processingTime = Math.floor((Date.now() - processingStartTime) / 1000);
+            coreExports.endGroup();
         }
         // Calculate elapsed time
         const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
@@ -37154,7 +37169,18 @@ async function run() {
         coreExports.setOutput('version', buildInfo.version);
         coreExports.setOutput('build-number', buildInfo.buildNumber);
         coreExports.setOutput('elapsed-time', elapsedTime.toString());
-        coreExports.info(`✅ Build processing completed successfully in ${elapsedTime}s`);
+        coreExports.info(`✅ Build processing completed successfully`);
+        coreExports.info('');
+        coreExports.info('Summary:');
+        coreExports.info(`- Build ID: ${buildInfo.id}`);
+        coreExports.info(`- Version: ${buildInfo.version} (Build ${buildInfo.buildNumber})`);
+        coreExports.info(`- Total time: ${formatElapsedTime(elapsedTime)}`);
+        if (findBuildTime > 0) {
+            coreExports.info(`  - Finding build: ${formatElapsedTime(findBuildTime)}`);
+        }
+        if (processingTime > 0) {
+            coreExports.info(`  - Processing: ${formatElapsedTime(processingTime)}`);
+        }
     }
     catch (error) {
         // Fail the workflow run if an error occurs
@@ -37164,6 +37190,11 @@ async function run() {
         else {
             coreExports.setFailed('An unexpected error occurred');
         }
+    }
+    function formatElapsedTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
     }
 }
 
