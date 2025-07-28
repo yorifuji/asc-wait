@@ -147,7 +147,7 @@ The action will wait until the build reaches `VALID` state or fail if it reaches
 - Node.js 20.x or later
 - npm
 
-### Setup
+### Development Setup
 
 ```bash
 # Install dependencies
