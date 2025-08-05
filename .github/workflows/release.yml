@@ -45,6 +45,7 @@ jobs:
           npm version ${{ steps.next-release.outputs.version-number }} --no-git-tag-version
           git add package.json package-lock.json
           git commit -m "chore: bump version to ${{ steps.next-release.outputs.version }}"
+          git push origin main
 
       - name: Create release
         env:
