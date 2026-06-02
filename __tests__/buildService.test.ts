@@ -36,7 +36,9 @@ describe('BuildService', () => {
       getBuildById: vi.fn()
     }
 
-    vi.mocked(AppStoreConnectClient).mockImplementation(() => mockClient)
+    vi.mocked(AppStoreConnectClient).mockImplementation(function () {
+      return mockClient
+    })
     buildService = new BuildService(mockConfig)
   })
 

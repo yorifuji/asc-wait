@@ -1,9 +1,5 @@
 # App Store Connect Build Wait
 
-[![CI](https://github.com/yorifuji/asc-wait/actions/workflows/ci.yml/badge.svg)](https://github.com/yorifuji/asc-wait/actions/workflows/ci.yml)
-[![Check dist/](https://github.com/yorifuji/asc-wait/actions/workflows/check-dist.yml/badge.svg)](https://github.com/yorifuji/asc-wait/actions/workflows/check-dist.yml)
-[![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
-
 A GitHub Action that waits for App Store Connect build processing to complete.
 This action monitors the processing state of a specific build and waits until it
 becomes valid.
@@ -144,7 +140,7 @@ The action will wait until the build reaches `VALID` state or fail if it reaches
 
 ### Prerequisites
 
-- Node.js 20.x or later
+- Node.js 24.x or later
 - npm
 
 ### Development Setup
@@ -170,7 +166,7 @@ npm test
 npm run coverage
 
 # Run tests in watch mode
-npm run test:ui
+npm test
 ```
 
 ## License
