@@ -140,7 +140,7 @@ The action will wait until the build reaches `VALID` state or fail if it reaches
 
 ### Prerequisites
 
-- Node.js 20.x or later
+- Node.js 24.x or later
 - npm
 
 ### Development Setup
