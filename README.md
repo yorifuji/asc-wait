@@ -170,7 +170,7 @@ npm test
 npm run coverage
 
 # Run tests in watch mode
-npm run test:ui
+npm test
 ```
 
 ## License

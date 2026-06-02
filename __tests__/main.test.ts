@@ -38,7 +38,9 @@ describe('Main', () => {
       findTargetBuildWithRetry: vi.fn(),
       waitForProcessing: vi.fn()
     }
-    vi.mocked(BuildService).mockImplementation(() => mockBuildService)
+    vi.mocked(BuildService).mockImplementation(function () {
+      return mockBuildService
+    })
   })
 
   describe('successful run', () => {
